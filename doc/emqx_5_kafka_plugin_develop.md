@@ -40,7 +40,6 @@
     - key 为kafka消息key模板，调用emqx_placeholder:preproc_tmpl()解析模板，可填充clientid、from、username、topic、payload、qos、node、ts
     - value 为kafka消息value模板，调用emqx_placeholder:preproc_tmpl()解析模板，可填充clientid、from、username、topic、payload、qos、node、ts
 
-
 6. 在emqx_plugin_kafka_schema.erl中按设计插件配置格式定义hocon    
 
 ```erlang
