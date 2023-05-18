@@ -10,3 +10,4 @@
 ## Emqx
 
 - [emqx 5 kafka 插件开发](./doc/emqx_5_kafka_plugin_develop.md)
+- [paho.mqtt.golang消息发送解析&修改源码增强压力测试能力](./doc/paho.mqtt.golang_edit_for_stress_test.md)

@@ -1,5 +1,6 @@
 1. Emqx 5插件可以使用[emqx_plugin_template](https://github.com/emqx/emqx-plugin-template)作为基础模板，在此基础上进行开发  
 <img src=./imgs/emqx_kafka/project_dir.png width=30% />
+
 - priv 配置文件
 - src 插件代码
     - emqx_cli_demo.erl 命令行控制
@@ -11,6 +12,7 @@
 
 2. 修改项目名/文件名为emqx_plugin_kafka  
 <img src=./imgs/emqx_kafka/kafka_plugin.png width=30% />
+
 - emqx_plugin_kafka_app.erl 插件启动
 - emqx_plugin_kafka_hook.erl emqx hook挂载
 - emqx_plugin_kafka_schema.erl 配置文件格式
@@ -19,10 +21,12 @@
 3. 修改rebar.config
 - 加入依赖  
 <img src=./imgs/emqx_kafka/deps.png width=40% />
+
     - Emqx 5采用hocon作为配置文件格式，加入hocon解析配置
     - 加入wolff（需brod、trie支持）连接kafka  
 - 配置打包内容  
 <img src=./imgs/emqx_kafka/relx.png width=40% />
+
     - kafka_protocol、snappyer、crc32cer、telemetry，kafka客户端运行需要
 
 4. 插件启动流程:
