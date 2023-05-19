@@ -6,6 +6,7 @@
 ## 数据库
 
 - [为何Innodb B+树与通常B+树不同?](./doc/why_Innodb_B%2B_tree_diffrent_from_normal_B%2B_tree.md)
+- [使用goyacc实现sql语法解析](./doc/sql_go_yacc.md)
 
 ## Emqx
 
