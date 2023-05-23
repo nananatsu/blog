@@ -956,3 +956,8 @@ func Bootstrap(conf *Config) *RaftServer {
 	return server
 }
 ```
+
+[完整代码](https://github.com/nananatsu/simple-raft)
+
+参考：
+- <https://github.com/etcd-io/etcd>
