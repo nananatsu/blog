@@ -15,3 +15,7 @@
 
 ## Raft
 - [用go实现raft-leader选举篇](./doc/raft_learn_1.md)
+- [用go实现raft-日志同步篇](./doc/raft_learn_2.md)
+
+### LSM
+- [用go实现LSM Tree (1)](./doc/lsm_tree_1.md)
