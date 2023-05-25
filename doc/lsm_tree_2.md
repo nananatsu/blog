@@ -514,6 +514,8 @@ func Restore(walFile string) (*skiplist.SkipList, error) {
 }
 ```
 
+[完整代码](https://github.com/nananatsu/simple-raft/tree/master/pkg/skiplist)
+
 参考:
 - [Bigtable: A Distributed Storage System for Structured Data](https://storage.googleapis.com/pub-tools-public-publication-data/pdf/68a74a85e1662fe02ff3967497f31fda7f32225c.pdf)
 - [leveldb](https://github.com/google/leveldb)

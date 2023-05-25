@@ -164,7 +164,7 @@ func (b *Block) clear() {
 }
 ```
 
-### 实现SSTable
+### 实现SSTable生成
 ---
 
 SSTable主要部分是由一系列数据块构成
@@ -177,7 +177,7 @@ SSTable主要部分是由一系列数据块构成
 
 <img src=./imgs/lsm/sstable_format_0.png width=60% />
 
-定义SSTable写入器
+定义SSTable Writer
 - 生成SSTable文件时，顺序写入数据块，缓存过滤器块及索引块，在数据块写入完成后再按顺序写入过滤器块、索引块、尾固定字节
 ```go
 type SstWriter struct {
@@ -388,7 +388,7 @@ func (w *SstWriter) Finish() (int64, map[uint64][]byte, []*Index) {
 	return int64(size), w.filter, w.index
 }
 ```
-添加新建函数，新建SSTable Writer打开指定文件，通过Append方法添加键值对，调用Finish方法将数据写入文件。
+添加新建函数，新建SSTable Writer打开指定文件，通过调用SstWriter通过Append()方法添加键值对，调用Finish()方法将数据写入文件。
 ```go
 func NewSstWriter(file string, conf *Config, logger *zap.SugaredLogger) (*SstWriter, error) {
 	fd, err := os.OpenFile(path.Join(conf.Dir, file), os.O_WRONLY|os.O_CREATE, 0644)
@@ -414,8 +414,260 @@ func NewSstWriter(file string, conf *Config, logger *zap.SugaredLogger) (*SstWri
 }
 
 ```
-本篇讲解了lsm树中SSTable文件格式，实现了一个SSTable Writer生成SSTable文件，后续将继续memtable实现及SSTable的压缩合并。
+### 实现SSTable读取
+---
+SSTable文件的读取过程与写入过程相反，首先读取footer固定字节得到索引块、过滤块位置，依据索引块读取数据块各部分，定义SSTable Reader如下：
+```go
+type SstReader struct {
+	mu              sync.RWMutex
+	conf            *Config
+	fd              *os.File      // sst文件(读)
+	reader          *bufio.Reader //包装file reader
+	FilterOffset    int64         // 过滤块起始偏移
+	FilterSize      int64         // 过滤块大小
+	IndexOffset     int64         // 索引块起始偏移
+	IndexSize       int64         // 索引块大小
+	compressScratch []byte        // 解压缓冲
+}
+```
+首先实现对footer的读取，取得SSTable元数据，将文件读取偏移移动到footer起始位置，逐个读取变长uint64，得到过滤块偏移及大小、索引块偏移及大小
+```go
+func (r *SstReader) ReadFooter() error {
+	_, err := r.fd.Seek(-int64(r.conf.SstFooterSize), io.SeekEnd)
+	if err != nil {
+		return err
+	}
 
+	filterOffset, err := binary.ReadUvarint(r.reader)
+	if err != nil {
+		return err
+	}
+
+	filterSize, err := binary.ReadUvarint(r.reader)
+	if err != nil {
+		return err
+	}
+
+	indexOffset, err := binary.ReadUvarint(r.reader)
+	if err != nil {
+		return err
+	}
+
+	indexSize, err := binary.ReadUvarint(r.reader)
+	if err != nil {
+		return err
+	}
+
+	if filterOffset == 0 || filterSize == 0 || indexOffset == 0 || indexSize == 0 {
+		return fmt.Errorf("sst文件footer数据异常")
+	}
+
+	r.FilterOffset = int64(filterOffset)
+	r.FilterSize = int64(filterSize)
+	r.IndexOffset = int64(indexOffset)
+	r.IndexSize = int64(indexSize)
+	return nil
+}
+```
+实现块的读取方法
+- 移动文件读取偏移到过滤器块起始位置，按过滤块大小读取完整块
+- 读取块尾CRC进行校验，校验失败则返回错误
+- 校验成功，则取块压缩部分解压，返回解压后数据
+```go
+func (r *SstReader) readBlock(offset, size int64) ([]byte, error) {
+	if _, err := r.fd.Seek(offset, io.SeekStart); err != nil {
+		return nil, err
+	}
+	r.reader.Reset(r.fd)
+
+	compress, err := r.read(size)
+	if err != nil {
+		return nil, err
+	}
+
+	crc := binary.LittleEndian.Uint32(compress[size-4:])
+	compressData := compress[:size-4]
+
+	if utils.Checksum(compressData) != crc {
+		return nil, fmt.Errorf("数据块校验失败")
+	}
+
+	data, err := snappy.Decode(nil, compressData)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+```
+实现块的解码方法
+- 首先从块尾读取到restart point数量，计算restart point起始偏移（每个restart point使用固定字节uint32表示），逐个读取restart point放入切片
+- 分离出块中键值对部分
+```go
+func DecodeBlock(block []byte) ([]byte, []int) {
+	n := len(block)
+
+	nRestartPoint := int(binary.LittleEndian.Uint32(block[n-4:]))
+	oRestartPoint := n - (nRestartPoint * 4) - 4
+	restartPoint := make([]int, nRestartPoint)
+
+	for i := 0; i < nRestartPoint; i++ {
+		restartPoint[i] = int(binary.LittleEndian.Uint32(block[oRestartPoint+i*4:]))
+	}
+	return block[:oRestartPoint], restartPoint
+}
+```
+实现键值对解码方法
+- 读取变长字节uint64 3次，得到共享键长度、键非共享部分长度、值长度
+- 按键非共享部分长度、值长度读出键非共享部分、值，拼接键共享部分、非共享部分
+	- restart point处键不共享，为完整键，读取时prevKey为nil，后续读取需要上次读取的键
+	- prevKey切片重复使用，拼接时复制数据
+```go
+func ReadRecord(prevKey []byte, buf *bytes.Buffer) ([]byte, []byte, error) {
+	keyPrefixLen, err := binary.ReadUvarint(buf)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	keyLen, err := binary.ReadUvarint(buf)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	valueLen, err := binary.ReadUvarint(buf)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	key := make([]byte, keyLen)
+	_, err = io.ReadFull(buf, key)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	value := make([]byte, valueLen)
+	_, err = io.ReadFull(buf, value)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	actualKey := make([]byte, keyPrefixLen)
+	copy(actualKey, prevKey[0:keyPrefixLen])
+	actualKey = append(actualKey, key...)
+	return actualKey, value, nil
+}
+```
+实现过滤块解码方法
+- 按块解码方式得到块数据部分
+- 循环解析数据部分得到键值对，将其的内存中映射为 偏移 -> 位数组 的map
+```go
+func ReadFilter(index []byte) map[uint64][]byte {
+
+	data, _ := DecodeBlock(index)
+	buf := bytes.NewBuffer(data)
+
+	filterMap := make(map[uint64][]byte, 0)
+	prevKey := make([]byte, 0)
+
+	for {
+		key, value, err := ReadRecord(prevKey, buf)
+
+		if err != nil {
+			break
+		}
+
+		offset, _ := binary.Uvarint(key)
+		filterMap[offset] = value
+		prevKey = key
+	}
+	return filterMap
+}
+```
+实现索引块解码
+- 按块解码方式得到块数据部分
+- 循环解析数据部分得到键值对，再对值读取两次变长uint64得到分隔键前一个块的偏移大小，与分隔键一同组织为索引Index，在内存中表示为一个索引切片
+```go
+type Index struct {
+	Key    []byte // 分隔键
+	Offset uint64 // 前一数据块偏移
+	Size   uint64 // 前一数据块大小
+}
+
+func ReadIndex(index []byte) []*Index {
+
+	data, _ := DecodeBlock(index)
+	indexBuf := bytes.NewBuffer(data)
+
+	indexes := make([]*Index, 0)
+	prevKey := make([]byte, 0)
+
+	for {
+		key, value, err := ReadRecord(prevKey, indexBuf)
+		if err != nil {
+			break
+		}
+
+		offset, n := binary.Uvarint(value)
+		size, _ := binary.Uvarint(value[n:])
+
+		indexes = append(indexes, &Index{
+			Key:    key,
+			Offset: uint64(offset),
+			Size:   uint64(size),
+		})
+		prevKey = key
+	}
+	return indexes
+}
+```
+实现过滤块读取/索引块，调用块读取方法，读取指定位置、大小块，再调用各自解码方法进行解码
+```go
+func (r *SstReader) ReadFilter() (map[uint64][]byte, error) {
+	if r.FilterOffset == 0 {
+		if err := r.ReadFooter(); err != nil {
+			return nil, err
+		}
+	}
+
+	data, err := r.readBlock(r.FilterOffset, r.FilterSize)
+	if err != nil {
+		return nil, err
+	}
+	return ReadFilter(data), nil
+}
+
+func (r *SstReader) ReadIndex() ([]*Index, error) {
+	if r.IndexOffset == 0 {
+		if err := r.ReadFooter(); err != nil {
+			return nil, err
+		}
+	}
+
+	data, err := r.readBlock(r.IndexOffset, r.IndexSize)
+	if err != nil {
+		return nil, err
+	}
+	return ReadIndex(data), nil
+}
+```
+添加新建函数，打开指定SSTable文件，通过SstReader调用ReadFooter()方法得到元数据，再调用ReadFilter()、ReadIndex()得到对应块在内存的表示结构。
+```go
+func NewSstReader(file string, conf *Config) (*SstReader, error) {
+	fd, err := os.OpenFile(path.Join(conf.Dir, file), os.O_RDONLY, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("无法加入节点，打开 %s文件失败:%v", file, err)
+	}
+
+	return &SstReader{
+		fd:     fd,
+		conf:   conf,
+		reader: bufio.NewReader(fd),
+	}, nil
+}
+```
+
+本篇讲解了lsm树中SSTable文件格式，实现了SSTable的读写，后续将继续memtable实现及SSTable的压缩合并。
+
+[完整代码](https://github.com/nananatsu/simple-raft/tree/master/pkg/lsm)
 
 参考:
 - [Bigtable: A Distributed Storage System for Structured Data](https://storage.googleapis.com/pub-tools-public-publication-data/pdf/68a74a85e1662fe02ff3967497f31fda7f32225c.pdf)

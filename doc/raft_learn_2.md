@@ -1,4 +1,4 @@
-## 用go实现Raft-日志同步篇
+## 用go实现Raft(2) - 日志同步篇
 ---
 
 在raft中，选取成功后集群就可以正常工作，一次正常的客户端提案过程如下：
@@ -554,9 +554,11 @@ func (p *Peer) SendBatch(msgs []*pb.RaftMessage) {
 	p.wg.Done()
 }
 ```
-通过上述代码实现了提案到leader，leader包装为日志，同步到集群的过程，后续将通过lsm实现日志落盘并将raft server作为一个简单的kv数据库。
+通过上述代码实现了提案到leader，leader再包装为日志，同步到集群的过程，后续将通过lsm实现日志落盘并将raft server作为一个简单的kv数据库。
 
 [完整代码](https://github.com/nananatsu/simple-raft)
 
 参考：
-- <https://github.com/etcd-io/etcd>
+- [In Search of an Understandable Consensus Algorithm](https://raft.github.io/raft.pdf)
+- [CONSENSUS: BRIDGING THEORY AND PRACTICE](https://web.stanford.edu/~ouster/cgi-bin/papers/OngaroPhD.pdf)
+- [etcd/raft](https://github.com/etcd-io/etcd)

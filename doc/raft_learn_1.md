@@ -1,4 +1,4 @@
-## 用go实现Raft-leader选举篇
+## 用go实现Raft (1) - leader选举篇
 ---
 
 raft是一种简单、易理解的分布式共识算法，通过强领导者管理日志复制/提交，集群中数据总是从领导者流向追随者，从而将共识问题分为了三个子问题：
@@ -35,7 +35,7 @@ raft每个节点都保存了任期编号，节点间通信时会交换任期编�
 - RequestVote，canidate在选举期间发送到其他节点请求投票
 - AppendEntries，leader收到新的提案后，转换为日志同步到集群，使用空日志作为心跳
 
-## Leader选举
+### Leader选举
 ---
 leader选举规则：
 - follower在一个选举周期，未收到消息，切换状态到canidate，更新任期，投票给自己，重置选举计时,广RequestVote请求
@@ -479,7 +479,6 @@ func (r *Raft) HandleFollowerMessage(msg *pb.RaftMessage) {
 添加新建函数，实例化raft
 ```go
 func NewRaft(id uint64, peers map[uint64]string, logger *zap.SugaredLogger) *Raft {
-
 	raftlog := NewRaftLog(logger)
 	raft := &Raft{
 		id:               id,
@@ -498,7 +497,7 @@ func NewRaft(id uint64, peers map[uint64]string, logger *zap.SugaredLogger) *Raf
 }
 ```
 
-## grpc实现节点通信
+### grpc实现节点通信
 ---
 之前实现了raft的leader选举部分，没有进行实际消息发送接受，接下来我们将通过grpc实现在不同节点间通信，定义RaftNode结构，将消息发送接收通过不通通道
 - 内部消息接收流程： grpc server -> raftNode.recvc -> raft.handleMessage()
@@ -960,4 +959,6 @@ func Bootstrap(conf *Config) *RaftServer {
 [完整代码](https://github.com/nananatsu/simple-raft)
 
 参考：
-- <https://github.com/etcd-io/etcd>
+- [In Search of an Understandable Consensus Algorithm](https://raft.github.io/raft.pdf)
+- [CONSENSUS: BRIDGING THEORY AND PRACTICE](https://web.stanford.edu/~ouster/cgi-bin/papers/OngaroPhD.pdf)
+- [etcd/raft](https://github.com/etcd-io/etcd)
