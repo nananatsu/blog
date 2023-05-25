@@ -1,4 +1,4 @@
-## 使用go实现LSM Tree (1)
+## 使用go实现LSM Tree (1) - SSTable
 ---
 在之前的文章中我们实现了raft的leader选举、日志同步功能，但是日志未持久化到硬盘，接下来我们实现lsm树来为raft添加存储。
 
