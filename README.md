@@ -14,9 +14,11 @@
 - [paho.mqtt.golang消息发送解析&修改源码增强压力测试能力](./doc/paho.mqtt.golang_edit_for_stress_test.md)
 
 ## Raft
-- [用go实现raft-leader选举篇](./doc/raft_learn_1.md)
-- [用go实现raft-日志同步篇](./doc/raft_learn_2.md)
+- [用go实现raft (1) - leader选举篇](./doc/raft_learn_1.md)
+- [用go实现raft (2) - 日志同步篇](./doc/raft_learn_2.md)
+- [用go实现raft (3) - 日志压缩篇](./doc/raft_learn_2.md)
 
 ### LSM
 - [用go实现LSM Tree (1) - SSTable](./doc/lsm_tree_1.md)
-- [用go实现LSM Tree (2) - memtable & wal](./doc/lsm_tree_1.md)
+- [用go实现LSM Tree (2) - memtable & wal](./doc/lsm_tree_2.md)
+- [用go实现LSM Tree (3) - compaction](./doc/lsm_tree_3.md)
