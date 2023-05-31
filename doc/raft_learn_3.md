@@ -323,6 +323,8 @@ func (r *Raft) HandleLeaderMessage(msg *pb.RaftMessage) {
 }
 ```
 添加RaftStorage新建函数,读取WAL还原日志，启动协程定时写入WAL。
+<details>
+
 ```go
 func NewRaftStorage(dir string, encoding Encoding, logger *zap.SugaredLogger) *RaftStorage {
 	// 保证文件夹存在
@@ -432,6 +434,8 @@ func restoreLogEntries(dir string, encoding Encoding, snap *Snapshot, logger *za
 	return logEntries, w
 }
 ```
+</details><br/>
+
 在启动节点时加入RaftSorage。
 ```go
 func Bootstrap(conf *Config) *RaftServer {
@@ -454,7 +458,7 @@ func Bootstrap(conf *Config) *RaftServer {
 }
 ```
 
-### KVDB Server实现
+### KV Server实现
 ---
 定义grpc服务，添加键值对查询、添加、删除，服务器注册接口。
 - 连接到服务需要提供 token
@@ -563,6 +567,8 @@ type Encoding interface {
 }
 ```
 在集群中我们已经使用了protobuf对日志进行序列化/反序列化，对键值对的编解码我们也直接使用protobuf，实现如下：
+<details>
+
 ```go
 type ProtobufEncoding struct {
 }
@@ -628,6 +634,8 @@ func (pe *ProtobufEncoding) DecodeLogEntries(logEntry *skiplist.SkipList) (*skip
 	return kvSL, index, term
 }
 ```
+</details><br/>
+
 实现查询接口，使用指定key查询数据
 ```go
 func (s *RaftServer) Get(ctx context.Context, req *clientpb.ReadonlyQuery) (*clientpb.Response, error) {
@@ -675,6 +683,8 @@ type Snapshot struct {
 ```
 实现快照文件查找方法，依据follower节点最新日志编号，找到需要发送的快照文件。
 - 已实现的LSM Tree中没有日志编号数据，于是我们在每次将内存数据写入磁盘SSTable时，将对应最后包含日志编号、任期记入文件名称，这样当需求日志编号LSM Tree第0层找到时，可以只发送部分SStable文件，如在其他层，日志编号信息已丢失，需将文件全部发送。
+<details>
+
 ```go
 func (ss *Snapshot) GetSegment(index uint64) (chan *pb.Snapshot, error) {
 	size := int64(4 * 1000 * 1000)
@@ -734,7 +744,11 @@ func (ss *Snapshot) GetSegment(index uint64) (chan *pb.Snapshot, error) {
 	return snapc, nil
 }
 ```
+</details><br/>
+
 实现快照文件读取，遍历需发送快照信息，按发送大小读取文件，包装为InstallSnapshot请求，发送到快照读取通道。
+<details>
+
 ```go
 func (ss *Snapshot) readSnapshot(send []*SnapshotSegment, snapc chan *pb.Snapshot) {
 	defer close(snapc)
@@ -807,7 +821,11 @@ func (n *Node) ReadRaw(perSize int64) chan *RawNodeData {
 	return readc
 }
 ```
+</details><br/>
+
 实现快照文件接收，各文件独立接收管理进度，当文件接收完成将文件合并到已存在的LSM Tree中。
+<details>
+
 ```go
 func (ss *Snapshot) AddSnapshotSegment(segment *pb.Snapshot) (bool, error) {
 	var err error
@@ -919,6 +937,7 @@ func (t *Tree) Merge(level int, extra string, filePath string) error {
 	return nil
 }
 ```
+</details><br/>
 
 [完整代码](https://github.com/nananatsu/simple-raft)
 
