@@ -17,8 +17,13 @@
 - [用go实现raft (1) - leader选举篇](./doc/raft_learn_1.md)
 - [用go实现raft (2) - 日志同步篇](./doc/raft_learn_2.md)
 - [用go实现raft (3) - 日志压缩篇](./doc/raft_learn_3.md)
+- [用go实现raft (4) - 成员变更篇](./doc/raft_learn_4.md)
 
 ### LSM
 - [用go实现LSM Tree (1) - SSTable](./doc/lsm_tree_1.md)
 - [用go实现LSM Tree (2) - memtable & wal](./doc/lsm_tree_2.md)
 - [用go实现LSM Tree (3) - compaction](./doc/lsm_tree_3.md)
+
+## 向量
+
+- [向量搜索学习笔记](./doc/vector_learn_1.md)

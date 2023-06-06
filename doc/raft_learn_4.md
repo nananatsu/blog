@@ -83,6 +83,7 @@ message MemberChangeCol { repeated MemberChange changes = 1; }
 - raft server，提供与客户端、其他节点的RPC通信
 - raft node，连接raft与raft server，通过通道将数据读写顺序化，避免产生数据竞争
 - raft，实现协议逻辑
+
 在raft、raft server中都保存着集群信息，raft server中保存集群各节点完整信息，raft中保存集群各节点编号，于是成员变更实际按以下过程来完成：
 - 接收到$C_{old,new}$ -> raft&raft server中加入新集群配置
 - $C_{old,new}$提交 -> leader发送$C_{new}$
