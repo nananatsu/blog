@@ -16,9 +16,9 @@ raft中节点必定处于leader、follower、candidate三种状态之一
 
 - 节点初始状态 follower
 - follower节点状态转换
-	- 一个选举周期未收到消息 -> canidate
-- canidate节点状态转换
- 	- 选举周期内未选出leader,重新选举 - canidate
+	- 一个选举周期未收到消息 -> candidate
+- candidate节点状态转换
+ 	- 选举周期内未选出leader,重新选举 - candidate
  	- 选举获胜 -> leader
  	- 收到更大任期的请求 -> follower
 - leader节点状态转换
@@ -28,20 +28,20 @@ raft中将时间分为一个个任期，任期编号是连续、单调增加的�
 
 raft每个节点都保存了任期编号，节点间通信时会交换任期编号
 - 当一个节点任期小于另一个节点，该节点会将任期编号更新到较大值
-- 当leader、canidate收到更大任期的请求，会立即转为follower状态
+- 当leader、candidate收到更大任期的请求，会立即转为follower状态
 - 节点收到更小任期的请求会将其拒绝
 
 节点间通过RPC进行通信，基本的RPC请求只有两种：
-- RequestVote，canidate在选举期间发送到其他节点请求投票
+- RequestVote，candidate在选举期间发送到其他节点请求投票
 - AppendEntries，leader收到新的提案后，转换为日志同步到集群，使用空日志作为心跳
 
 ### Leader选举
 ---
 leader选举规则：
-- follower在一个选举周期，未收到消息，切换状态到canidate，更新任期，投票给自己，重置选举计时,广RequestVote请求
-- canidate获得集群中大多数节点投票，赢得选举，切换状态到leader，向集群广播空日志，阻止新选举
-- canidate收到新leader消息，转换为follower
-- canidate在一个选举周期未能获胜或收到新leader消息，开始下一次选举
+- follower在一个选举周期，未收到消息，切换状态到candidate，更新任期，投票给自己，重置选举计时,广RequestVote请求
+- candidate获得集群中大多数节点投票，赢得选举，切换状态到leader，向集群广播空日志，阻止新选举
+- candidate收到新leader消息，转换为follower
+- candidate在一个选举周期未能获胜或收到新leader消息，开始下一次选举
 - 节点在单个任期只能进行一次投票
 
 rpc框架选用grpc，使用proto定义raft消息格式
@@ -93,11 +93,11 @@ type Raft struct {
 	logger                *zap.SugaredLogger
 }
 ```
-分布式系统中各个节点物理时钟存在误差，在实现中使用逻辑时钟，定义Tick()方法，每次调用使时钟加一，leader中时钟控制心跳发送，follower及canidate中时钟控制选举，为了防止leader失效后follower在相同时间都切换为canidate，使得无法选举出leader，每个节点使用随机的选举周期（基础选举周期 + 随机选举周期）,心跳时间需要小于选举周期。
+分布式系统中各个节点物理时钟存在误差，在实现中使用逻辑时钟，定义Tick()方法，每次调用使时钟加一，leader中时钟控制心跳发送，follower及candidate中时钟控制选举，为了防止leader失效后follower在相同时间都切换为candidate，使得无法选举出leader，每个节点使用随机的选举周期（基础选举周期 + 随机选举周期）,心跳时间需要小于选举周期。
 - 每次tick选举时钟加一
 - 当选举时钟大于等于玄奇周期
-	- follower切换为canidate
-	- canidate重新进行选举
+	- follower切换为candidate
+	- candidate重新进行选举
 ```go
 func (r *Raft) TickElection() {
 	r.electtionTick++
@@ -113,8 +113,8 @@ func (r *Raft) TickElection() {
 	}
 }
 ```
-协议中指定raft节点初始状态为follower，首先实现函数将节点状态转换为canidate
-- 将节点状态更改为canidate，更改消息处理函数为canidate消息处理
+协议中指定raft节点初始状态为follower，首先实现函数将节点状态转换为candidate
+- 将节点状态更改为candidate，更改消息处理函数为candidate消息处理
 - 重新设定选举周期，并重新计时，更新时钟Tick()方法为选举时钟处理方法
 - 增加任期
 - 给自己投票
@@ -177,7 +177,7 @@ func (r *Raft) send(msg *pb.RaftMessage) {
 	r.Msg = append(r.Msg, msg)
 }
 ```
-集群中的follower、canidate都会处理投票请求，并将结果发送回请求投票的节点，响应额外包含节点日志进度，成为leader的节点可以安照日志进度继续进行日志同步
+集群中的follower、candidate都会处理投票请求，并将结果发送回请求投票的节点，响应额外包含节点日志进度，成为leader的节点可以安照日志进度继续进行日志同步
 - 当前任期未投票，请求方最新日志编号大于等于自身日志最新编号，则投票给请求者
 	- 最新日志编号从日志记录中取得，后续篇章中实现
 - 当前任期已投票、或请求方最新日志编号小于自身日志最新编号，拒绝投票
@@ -247,8 +247,8 @@ func (c *Cluster) Vote(id uint64, granted bool) {
 }
 ```
 定义集群大多数为: 节点数量/2+1
-- canidate收到 节点数量/2+1 的投票，为赢得选举
-- canidate收到 节点数量/2 的拒绝投票，为选举失败
+- candidate收到 节点数量/2+1 的投票，为赢得选举
+- candidate收到 节点数量/2 的拒绝投票，为选举失败
 ```go
 func (c *Cluster) CheckVoteResult() VoteResult {
 	granted := 0
@@ -276,7 +276,7 @@ func (c *Cluster) CheckVoteResult() VoteResult {
 ```
 实现消息处理方法，分为公共处理部分、特定消息处理部分
 - 公共处理部分，检查消息的任期，拒绝过时消息及收到消息任期比节点新时，更新节点任期及状态
-- 特定消息处理，按节点状态(leader、follower、canidate)处理消息
+- 特定消息处理，按节点状态(leader、follower、candidate)处理消息
 ```go
 func (r *Raft) HandleMessage(msg *pb.RaftMessage) {
 	if msg == nil {
@@ -303,7 +303,7 @@ func (r *Raft) HandleMessage(msg *pb.RaftMessage) {
 }
 ```
 
-实现canidate消息处理方法，处理投票请求、投票响应、心跳、日志
+实现candidate消息处理方法，处理投票请求、投票响应、心跳、日志
 - 新leader上线时，节点日志进度进度与leader一致则发送空日志(心跳)，如节点日志未同步到最新则直接发送缺失日志
 ```go
 func (r *Raft) HandleCandidateMessage(msg *pb.RaftMessage) {

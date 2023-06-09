@@ -137,23 +137,23 @@ Transform近年最流行的一个模型，基于注意力机制，分为编码�
   
    $D(x,y) = \frac{ 2 \vert  x \bigcap y \vert }{ \vert  x   \vert +  \vert  y \vert }   =  \frac{ 2  \vert x \cdot y \vert }{ \Vert x \Vert ^2 + \Vert y \Vert ^2  }  =\frac{ 2 \mathop{∑}\limits_{i=1}^{n} x_i \times y_i }{   \mathop{∑}\limits_{i=1}^{n} x_i^2 + \mathop{∑}\limits_{i=1}^{n} y_i^2 } $
 
-    ```python
+  ```python
     In []: distance.dice([1, 0, 0], [0, 1, 0])
     Out []: 1.0
-    ```
+  ```
 
   - 汉明距离（Hamming Distance），两个向量间不同值的数量，当向量长度不等时很难使用并且不会考虑实际值，常用与网络传输中的纠错/检测。
 
-    ```python
+  ```python
     In []: distance.hamming([1, 0, 0], [0, 1, 0])
     Out []: 0.6666666666666666
-    ```
+  ```
  
   - 半正矢距离（Haversine Distance），给定经纬度球面上两点间的距离，实际上很少有这种情况，更多的是计算椭圆面上的距离（vincenty距离）。
 
   $D(xy) = 2r \: arcsin(  \sqrt{ sin^2(\frac{ \varphi _2 - \varphi _1}{2}) + cos \varphi _1⋅cos \varphi _2⋅sin^2(\frac{λ_2 - λ_1}{2} ) } ) $
 
-    ```python
+  ```python
     In []: from math import radians, cos, sin, asin, sqrt
           def haversine(lon1, lat1, lon2, lat2):
               lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
@@ -166,7 +166,7 @@ Transform近年最流行的一个模型，基于注意力机制，分为编码�
 
           haversine(1,0,0,1)
     Out []: 157.24938127194397
-    ```
+  ```
 
   - 马哈拉诺比斯距离（Mahalanobis Distance，马氏距离），用于计算点与分布间的距离。给定分布D，均值$μ = (μ_1,μ_2,...,μ_p)$，协方差矩阵S，则点$x = (x_1.x_2,...,x_n)$与分布D的距离为：
      
@@ -244,18 +244,24 @@ Transform近年最流行的一个模型，基于注意力机制，分为编码�
  
 相似性搜索（向量搜索），给定一组向量和查询向量，从向量集中找到最相似的项目。常用的有两种搜索方式：
   - KNN（k-nearest neighbors algorithm，k-最近邻居算法），在向量空间中为给定查询向量找到最近的向量，k-NN在查询时需要查询向量与向量集中每个向量的距离。
-
-  - ANN（approximately nearest neighbors，近似最近邻居），为减少KNN这类算法的计算复杂度，通过建立索引结构来缩小搜索空间以缩短查询时间。
+  - 为减少KNN这类算法的计算复杂度，通过建立索引结构来缩小搜索空间以缩短查询时间。
+    - 精确搜索，空间索引/度量树
+        - 欧几里得空间，空间索引，如kd树、R树、R*树
+        - 一般度量空间，度量树，如M树、VP树、BK树
+    - 近似搜索，ANN（approximately nearest neighbors，近似最近邻居）
+      - 邻近邻域图搜索，如HNSW
+      - 局部敏感散列
+      - 基于压缩/聚类搜索
 
 Faiss（Facebook AI Similarity Search）是一个流行的相似性搜索库，我们可以将向量存储到Faiss中进行索引，再用查询向量从Faiss中找到最相似的向量。
 
-    ```python
+  ```python
     In []: %pip install pandas sentence-transformers torch faiss-gpu
            import pandas as pd
            from sentence_transformers import SentenceTransformer
            import faiss
            from google.colab import drive
-    ```
+  ```
 
 复制<https://github.com/brightmart/nlp_chinese_corpus>中的中文语料到google drive，再挂载google drive到/content/drive/，解压语料到本地。
   ```python
@@ -394,7 +400,7 @@ faiss通过缩小搜索范围来优化查询速度：
 
          indexIVFPQ.train(sentence_embeddings)
          indexIVFPQ.add(sentence_embeddings)
-  In []: %%time
+  In []: %%time 
          D, I = indexIVFPQ.search(xq, k)
          print(I)
   Out []: [[6328 8142 1502 4918]]
