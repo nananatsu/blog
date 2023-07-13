@@ -2,6 +2,7 @@
 
 - [kubernetes calico网络架构说明](./doc/kubernets_calico_network_structure.md)
 - [自定义istio envoy过滤器](./doc/istio_envoy_filter_use.md)
+- [记一次kubernetes local-path卷迁移](./doc/%E8%AE%B0%E4%B8%80%E6%AC%A1kubernetes%20local-path%E5%8D%B7%E8%BF%81%E7%A7%BB.md)
 
 ## 数据库
 
