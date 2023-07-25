@@ -29,3 +29,4 @@
 
 - [向量搜索学习笔记 - 向量距离&Faiss](./doc/vector_learn_1.md)
 - [向量搜索学习笔记 - 局部敏感哈希](./doc/vector_learn_2.md)
+- [向量搜索学习笔记 - 乘积量化](./doc/vector_learn_3.md)
