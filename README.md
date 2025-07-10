@@ -15,12 +15,14 @@
 - [paho.mqtt.golang消息发送解析&修改源码增强压力测试能力](./doc/paho.mqtt.golang_edit_for_stress_test.md)
 
 ## Raft
+
 - [用go实现raft (1) - leader选举篇](./doc/raft_learn_1.md)
 - [用go实现raft (2) - 日志同步篇](./doc/raft_learn_2.md)
 - [用go实现raft (3) - 日志压缩篇](./doc/raft_learn_3.md)
 - [用go实现raft (4) - 成员变更篇](./doc/raft_learn_4.md)
 
 ### LSM
+
 - [用go实现LSM Tree (1) - SSTable](./doc/lsm_tree_1.md)
 - [用go实现LSM Tree (2) - memtable & wal](./doc/lsm_tree_2.md)
 - [用go实现LSM Tree (3) - compaction](./doc/lsm_tree_3.md)
@@ -30,3 +32,9 @@
 - [向量搜索学习笔记 - 向量距离&Faiss](./doc/vector_learn_1.md)
 - [向量搜索学习笔记 - 局部敏感哈希](./doc/vector_learn_2.md)
 - [向量搜索学习笔记 - 乘积量化](./doc/vector_learn_3.md)
+
+## 模型训练
+- [训练albert用于分类](./notebook/llm/train-albert-classify.ipynb)
+- [微调opus-mt-en-zh翻译](./notebook/llm/train-opus-mt-en-zh.ipynb)
+- [通过deepspeed+peft在GPU上微调qwen2-5-7b](./notebook/llm/train-qwen2-5-7b-lora-gpu.ipynb)
+- [通过torch_xla（fsdp_v2）在tpu上微调qwen2-5-7b、qwen3-8b](./notebook/llm/train-qwen2-5-7b-lora-gpu.ipynb)
